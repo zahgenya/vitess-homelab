@@ -2,8 +2,6 @@ garage-credentials
 secrets.yaml
 users.json
 
-init_db.sql
-
 # Generic credential shapes
 *-credentials
 *.key
