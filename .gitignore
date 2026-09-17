@@ -1,0 +1,18 @@
+garage-credentials
+secrets.yaml
+users.json
+
+init_db.sql
+
+# Generic credential shapes
+*-credentials
+*.key
+*.pem
+*.env
+.env*
+kubeconfig
+*.kubeconfig
+
+.DS_Store
+*.swp
+*~

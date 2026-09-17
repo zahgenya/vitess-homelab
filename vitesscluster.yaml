@@ -1,0 +1,130 @@
+apiVersion: planetscale.com/v2
+kind: VitessCluster
+metadata:
+  name: vitess-homelab
+  namespace: vitess
+spec:
+  backup:
+    engine: xtrabackup
+    locations:
+      - s3:
+          region: garage
+          bucket: vitess-backups
+          endpoint: http://garage.vitess.svc.cluster.local:3900
+          forcePathStyle: true
+          authSecret:
+            name: garage-creds
+            key: credentials
+
+  images:
+    vtctld: vitess/lite:v24.0.0
+    vtadmin: vitess/vtadmin:v24.0.0
+    vtgate: vitess/lite:v24.0.0
+    vttablet: vitess/lite:v24.0.0
+    vtbackup: vitess/lite:v24.0.0
+    vtorc: vitess/lite:v24.0.0
+    mysqld:
+      mysql80Compatible: vitess/lite:v24.0.0
+    mysqldExporter: prom/mysqld-exporter:v0.18.0
+
+  cells:
+    - name: zone1
+      gateway:
+        authentication:
+          static:
+            secret:
+              name: vitess-init-secrets
+              key: users.json
+        replicas: 1
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            memory: 512Mi
+
+  vitessDashboard:
+    cells: [zone1]
+    replicas: 1
+    extraFlags:
+      security-policy: read-only
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 256Mi
+
+  vtadmin:
+    cells: [zone1]
+    replicas: 1
+    readOnly: false
+    apiAddresses:
+      - http://localhost:14001
+    rbac:
+      name: vitess-init-secrets
+      key: vtadmin-rbac.yaml
+    apiResources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 256Mi
+    webResources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+
+  keyspaces:
+    - name: core
+      durabilityPolicy: semi_sync
+      turndownPolicy: Immediate
+      vitessOrchestrator:
+        extraFlags:
+          instance-poll-time: 1s
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            memory: 128Mi
+      partitionings:
+        - equal:
+            parts: 1
+            shardTemplate:
+              databaseInitScriptSecret:
+                name: vitess-init-secrets
+                key: init_db.sql
+              tabletPools:
+                - cell: zone1
+                  type: replica
+                  replicas: 3
+                  vttablet:
+                    resources:
+                      requests:
+                        cpu: 250m
+                        memory: 512Mi
+                      limits:
+                        memory: 512Mi
+                    extraFlags:
+                      db-charset: utf8mb4
+                    vtbackupExtraFlags:
+                      s3-backup-aws-endpoint: http://garage.vitess.svc.cluster.local:3900
+                  mysqld:
+                    resources:
+                      requests:
+                        cpu: 500m
+                        memory: 2Gi
+                      limits:
+                        memory: 3Gi
+                    configOverrides: |
+                      [mysqld]
+                      innodb_buffer_pool_size = 1610612736
+                  dataVolumeClaimTemplate:
+                    accessModes: ["ReadWriteOnce"]
+                    storageClassName: local-path
+                    resources:
+                      requests:
+                        storage: 20Gi

@@ -1,0 +1,44 @@
+# Copyright 2022 The Vitess Authors.
+# Licensed under the Apache License, Version 2.0
+
+##############################################################################
+# Equivalent of mysql_secure_installation
+##############################################################################
+
+# Changes during the init db should not make it to the binlog.
+# They could potentially create errant transactions on replicas.
+SET sql_log_bin = 0;
+
+# Remove anonymous users.
+DELETE FROM mysql.user WHERE User = '';
+
+# Disable remote root access (only allow UNIX socket).
+DELETE FROM mysql.user WHERE User = 'root' AND Host != 'localhost';
+
+# Remove test database.
+DROP DATABASE IF EXISTS test;
+
+##############################################################################
+# Vitess-specific users
+##############################################################################
+
+CREATE USER 'vt_dba'@'localhost' IDENTIFIED WITH mysql_native_password BY '__VT_DBA_PW__';
+GRANT ALL ON *.* TO 'vt_dba'@'localhost';
+GRANT GRANT OPTION ON *.* TO 'vt_dba'@'localhost';
+
+CREATE USER 'vt_app'@'localhost' IDENTIFIED WITH mysql_native_password BY '__VT_APP_PW__';
+GRANT SELECT, SHOW DATABASES, PROCESS ON *.* TO 'vt_app'@'localhost';
+
+CREATE USER 'vt_allprivs'@'localhost' IDENTIFIED WITH mysql_native_password BY '__VT_ALLPRIVS_PW__';
+GRANT ALL ON *.* TO 'vt_allprivs'@'localhost';
+
+CREATE USER 'vt_repl'@'%' IDENTIFIED WITH mysql_native_password BY '__VT_REPL_PW__';
+GRANT REPLICATION SLAVE ON *.* TO 'vt_repl'@'%';
+
+CREATE USER 'vt_filtered'@'localhost' IDENTIFIED WITH mysql_native_password BY '__VT_FILTERED_PW__';
+GRANT ALL ON *.* TO 'vt_filtered'@'localhost';
+
+FLUSH PRIVILEGES;
+
+RESET SLAVE ALL;
+RESET MASTER;
