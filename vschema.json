@@ -1,0 +1,9 @@
+{
+  "sharded": false,
+  "tables": {
+    "currencies": {},
+    "default_rate_pairs": {},
+    "fetch_log": {},
+    "market_snapshots": {}
+  }
+}
